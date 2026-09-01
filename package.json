@@ -1,0 +1,14 @@
+{
+  "name": "tao-os",
+  "version": "0.1.0",
+  "description": "TAO — Personal Operating System. Local-first operational intelligence.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host --port 5173",
+    "build": "vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

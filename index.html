@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TAO — Personal Operating System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Instrument Sans','system-ui','sans-serif'],
+            mono: ['JetBrains Mono','monospace']
+          },
+          colors: {
+            tao: {
+              bg: '#0A0A0B',
+              surface: '#141416',
+              card: '#1C1C1F',
+              border: '#2A2A2E',
+              muted: '#8A8A93',
+              accent: '#E8FF4A',
+              accent2: '#7C5CFF',
+              danger: '#FF4A4A'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    *{scrollbar-width:thin;scrollbar-color:#2A2A2E transparent}
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-thumb{background:#2A2A2E;border-radius:999px}
+    .kbd{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;border:1px solid #2A2A2E;background:#141416;padding:2px 6px;border-radius:6px;color:#8A8A93}
+  </style>
+</head>
+<body class="bg-tao-bg text-white font-sans antialiased overflow-hidden">
+  <div id="app" class="flex h-screen w-screen">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-[260px] shrink-0 bg-tao-surface border-r border-tao-border flex flex-col hidden md:flex">
+      <div class="h-[64px] px-5 flex items-center gap-3 border-b border-tao-border">
+        <div class="w-8 h-8 rounded-lg bg-tao-accent flex items-center justify-center text-black font-mono font-bold text-sm">TAO</div>
+        <div>
+          <div class="text-sm font-semibold tracking-tight">TAO OS</div>
+          <div class="text-[11px] text-tao-muted -mt-1">Personal Operating System</div>
+        </div>
+        <span class="ml-auto text-[10px] px-2 py-1 rounded-full bg-tao-card border border-tao-border text-tao-muted">LOCAL</span>
+      </div>
+
+      <nav id="nav" class="flex-1 p-3 space-y-6 overflow-y-auto">
+        <!-- injected by JS -->
+      </nav>
+
+      <div class="p-3 border-t border-tao-border space-y-3">
+        <div class="bg-tao-card rounded-xl p-3 border border-tao-border">
+          <div class="text-xs font-medium">Next Action Enforcement</div>
+          <div class="text-[11px] text-tao-muted mt-1">Every active project must have one clearly defined next physical action.</div>
+          <div id="enforcementBadge" class="mt-2 text-xs font-mono"></div>
+        </div>
+        <div class="flex items-center gap-2 text-[11px] text-tao-muted">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          Local-first • <span id="storeSize">—</span> stored
+          <button id="exportBtn" class="ml-auto text-tao-accent hover:underline">Export</button>
+          <label class="text-tao-accent hover:underline cursor-pointer">Import<input id="importFile" type="file" accept=".json" class="hidden"></label>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- Topbar -->
+      <header class="h-[64px] shrink-0 border-b border-tao-border bg-tao-surface/80 backdrop-blur flex items-center gap-3 px-4">
+        <button id="mobileMenu" class="md:hidden w-9 h-9 grid place-items-center rounded-lg border border-tao-border">≡</button>
+        <div class="flex-1 flex items-center gap-3 min-w-0">
+          <div class="hidden sm:flex items-center gap-2 text-xs text-tao-muted">
+            <span class="kbd">⌘ K</span> Command
+            <span class="kbd">?</span> Help
+          </div>
+          <div class="flex-1 max-w-xl relative">
+            <input id="globalSearch" placeholder="Search projects, decisions, memories… ( / )" class="w-full h-9 rounded-xl bg-tao-card border border-tao-border px-3 pl-9 text-sm outline-none focus:border-tao-accent/50 placeholder:text-tao-muted" />
+            <span class="absolute left-3 top-2.5 text-tao-muted text-sm">⌕</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="aiProvider" class="h-9 rounded-xl bg-tao-card border border-tao-border px-3 text-xs">
+            <option value="mock">Mock (offline)</option>
+            <option value="grok">Grok (xAI)</option>
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="ollama">Ollama (local)</option>
+          </select>
+          <input id="aiKey" placeholder="API key / Ollama URL" class="hidden sm:block h-9 w-36 rounded-xl bg-tao-card border border-tao-border px-3 text-xs" />
+          <button id="commandBtn" class="h-9 px-4 rounded-xl bg-tao-accent text-black text-sm font-semibold">Ask TAO</button>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <main id="content" class="flex-1 overflow-y-auto bg-tao-bg">
+        <!-- injected -->
+      </main>
+
+      <!-- Status bar -->
+      <footer class="h-7 shrink-0 border-t border-tao-border bg-tao-surface flex items-center gap-3 px-3 text-[11px] font-mono text-tao-muted">
+        <span id="statusLeft">TAO ready — local-first, privacy-conscious</span>
+        <span class="ml-auto flex items-center gap-3">
+          <span id="statusProjects">— projects</span>
+          <span id="statusIdeas">— ideas</span>
+          <span id="clock">--:--</span>
+        </span>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Command Palette -->
+  <div id="palette" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden place-items-center p-4 z-50">
+    <div class="w-full max-w-[640px] rounded-2xl bg-tao-surface border border-tao-border overflow-hidden shadow-2xl">
+      <div class="flex items-center gap-3 px-4 h-12 border-b border-tao-border">
+        <span class="text-tao-muted">⌕</span>
+        <input id="paletteInput" placeholder="Type a command or ask TAO…" class="flex-1 bg-transparent outline-none text-sm" autofocus />
+        <span class="kbd">ESC</span>
+      </div>
+      <div id="paletteResults" class="max-h-[380px] overflow-y-auto p-2"></div>
+      <div class="px-3 py-2 border-t border-tao-border flex gap-2 text-[11px] text-tao-muted">
+        <span><b>↵</b> select</span><span><b>↑↓</b> navigate</span><span><b>⌘+N</b> new project</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help -->
+  <div id="help" class="fixed inset-0 bg-black/60 hidden place-items-center p-4 z-50">
+    <div class="w-full max-w-[720px] rounded-2xl bg-tao-surface border border-tao-border p-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Keyboard — TAO is keyboard-first</h2>
+        <button onclick="document.getElementById('help').classList.add('hidden');document.getElementById('help').classList.remove('grid')" class="w-8 h-8 grid place-items-center rounded-lg border border-tao-border">✕</button>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-4 mt-4 text-sm">
+        <div class="space-y-2">
+          <div class="text-tao-muted text-xs uppercase tracking-widest">Navigation</div>
+          <div class="flex justify-between"><span>G then C</span><span class="kbd">Command Center</span></div>
+          <div class="flex justify-between"><span>G then P</span><span class="kbd">Projects</span></div>
+          <div class="flex justify-between"><span>G then M</span><span class="kbd">Memory</span></div>
+          <div class="flex justify-between"><span>G then D</span><span class="kbd">Decisions</span></div>
+          <div class="flex justify-between"><span>G then I</span><span class="kbd">Idea Vault</span></div>
+          <div class="flex justify-between"><span>G then V</span><span class="kbd">Developer</span></div>
+          <div class="flex justify-between"><span>G then S</span><span class="kbd">Study</span></div>
+          <div class="flex justify-between"><span>G then B</span><span class="kbd">Business</span></div>
+        </div>
+        <div class="space-y-2">
+          <div class="text-tao-muted text-xs uppercase tracking-widest">Actions</div>
+          <div class="flex justify-between"><span>New project</span><span class="kbd">N</span></div>
+          <div class="flex justify-between"><span>Command palette</span><span class="kbd">⌘ K</span></div>
+          <div class="flex justify-between"><span>Search</span><span class="kbd">/</span></div>
+          <div class="flex justify-between"><span>Ask TAO</span><span class="kbd">A</span></div>
+          <div class="flex justify-between"><span>Help</span><span class="kbd">?</span></div>
+          <div class="flex justify-between"><span>Export JSON</span><span class="kbd">E</span></div>
+        </div>
+      </div>
+      <div class="mt-6 rounded-xl bg-tao-accent text-black p-4">
+        <div class="font-semibold">Central Principle</div>
+        <div class="text-sm mt-1">Every active project must have one clearly defined next physical action. TAO aggressively blocks creation of active projects without a next action.</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
