@@ -1,5 +1,6 @@
 // Developer Mode — reconstruct where development stopped
-// Tries to use File System Access API if available, otherwise works as manual tracker
+// Tries to use File System Access API if available, otherwise shows honest disconnected state.
+// Never fabricates commits/TODOs as real data.
 
 export async function pickRepoDirectory(){
   if(!window.showDirectoryPicker){
@@ -10,8 +11,7 @@ export async function pickRepoDirectory(){
 }
 
 export async function scanDirectory(dirHandle){
-  // naive recursive scan for .git, package.json, TODOs, recent files
-  const findings = { name: dirHandle.name, hasGit:false, files:[], todos:[], recent:[] }
+  const findings = { name: dirHandle.name, hasGit:false, files:[], todos:[], recent:[], commits:[], branch: null, dirty: false, connected: true }
   async function walk(handle, path='', depth=0){
     if(depth>4) return
     for await (const [name, entry] of handle.entries()){
@@ -40,24 +40,22 @@ export async function scanDirectory(dirHandle){
   await walk(dirHandle)
   findings.recent.sort((a,b)=>b.modified-a.modified)
   findings.recent = findings.recent.slice(0, 12)
+  // Note: commits require git log; File System Access cannot read .git objects reliably, so we leave commits empty and show honest state
+  findings.commits = []
   return findings
 }
 
 export function mockDevSnapshot(){
+  // Honest disconnected state — no fabricated commits
   return {
-    name: 'tao-os',
-    hasGit: true,
-    files: ['src/main.js','src/lib/store.js','src/lib/planning.js','index.html','README.md'],
-    todos: [{ file:'src/lib/store.js', count:2, lines:['// TODO: migrate to OPFS','// FIXME: handle corrupted JSON'] }],
-    recent: [
-      { file:'src/main.js', modified: Date.now()-1000*60*20, size: 12400 },
-      { file:'index.html', modified: Date.now()-1000*60*60*3, size: 8200 },
-    ],
-    commits: [
-      { hash:'a1b2c3d', msg:'feat: add planning engine', ago:'2h ago', author:'you' },
-      { hash:'9f8e7d6', msg:'fix: enforce nextAction', ago:'5h ago', author:'you' },
-      { hash:'4c3b2a1', msg:'chore: seed projects', ago:'1d ago', author:'you' },
-    ],
-    branch: 'main', dirty: true
+    name: null,
+    connected: false,
+    hasGit: false,
+    files: [],
+    todos: [],
+    recent: [],
+    commits: [],
+    branch: null,
+    dirty: false
   }
 }

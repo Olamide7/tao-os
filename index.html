@@ -3,45 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src https://fonts.gstatic.com; connect-src 'self' https://api.x.ai https://api.openai.com https://api.anthropic.com http://localhost:* https://*.netlify.app; img-src 'self' data:; object-src 'none'; base-uri 'self';">
   <title>TAO — Personal Operating System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Instrument Sans','system-ui','sans-serif'],
-            mono: ['JetBrains Mono','monospace']
-          },
-          colors: {
-            tao: {
-              bg: '#0A0A0B',
-              surface: '#141416',
-              card: '#1C1C1F',
-              border: '#2A2A2E',
-              muted: '#8A8A93',
-              accent: '#E8FF4A',
-              accent2: '#7C5CFF',
-              danger: '#FF4A4A'
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     *{scrollbar-width:thin;scrollbar-color:#2A2A2E transparent}
     ::-webkit-scrollbar{width:6px;height:6px}
     ::-webkit-scrollbar-thumb{background:#2A2A2E;border-radius:999px}
     .kbd{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;border:1px solid #2A2A2E;background:#141416;padding:2px 6px;border-radius:6px;color:#8A8A93}
+    @media (prefers-reduced-motion: reduce){ *,*::before,*::after{ animation-duration:0.01ms !important; transition-duration:0.01ms !important; scroll-behavior:auto !important; } }
+    @media (max-width: 768px){
+      button, [role="button"], a { min-height: 44px; min-width: 44px; }
+      /* keep kbd and small badges compact */
+      .kbd{ min-height:auto; min-width:auto; }
+    }
   </style>
 </head>
 <body class="bg-tao-bg text-white font-sans antialiased overflow-hidden">
   <div id="app" class="flex h-screen w-screen">
+    <!-- Mobile backdrop -->
+    <div id="sidebarBackdrop" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-30 md:hidden"></div>
     <!-- Sidebar -->
-    <aside id="sidebar" class="w-[260px] shrink-0 bg-tao-surface border-r border-tao-border flex flex-col hidden md:flex">
+    <aside id="sidebar" class="w-[260px] shrink-0 bg-tao-surface border-r border-tao-border flex flex-col hidden md:flex z-40">
       <div class="h-[64px] px-5 flex items-center gap-3 border-b border-tao-border">
         <div class="w-8 h-8 rounded-lg bg-tao-accent flex items-center justify-center text-black font-mono font-bold text-sm">TAO</div>
         <div>
@@ -51,6 +35,7 @@
         <span class="ml-auto text-[10px] px-2 py-1 rounded-full bg-tao-card border border-tao-border text-tao-muted">LOCAL</span>
       </div>
 
+      <button id="captureBtn" class="mx-3 mb-3 h-10 rounded-xl bg-tao-accent text-black font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[#d4e636] transition">+ Capture <span class="hidden xl:inline text-xs font-normal opacity-70"> (C)</span></button>
       <nav id="nav" class="flex-1 p-3 space-y-6 overflow-y-auto">
         <!-- injected by JS -->
       </nav>
@@ -86,6 +71,7 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
+          <button id="topCaptureBtn" class="hidden sm:flex h-9 px-3 rounded-xl bg-tao-accent text-black text-sm font-semibold items-center gap-1">+ Capture</button>
           <select id="aiProvider" class="h-9 rounded-xl bg-tao-card border border-tao-border px-3 text-xs">
             <option value="mock">Mock (offline)</option>
             <option value="grok">Grok (xAI)</option>
@@ -93,18 +79,21 @@
             <option value="anthropic">Anthropic</option>
             <option value="ollama">Ollama (local)</option>
           </select>
-          <input id="aiKey" placeholder="API key / Ollama URL" class="hidden sm:block h-9 w-36 rounded-xl bg-tao-card border border-tao-border px-3 text-xs" />
+          <input id="aiKey" type="password" autocomplete="off" spellcheck="false" placeholder="API key / Ollama URL" class="hidden sm:block h-9 w-36 rounded-xl bg-tao-card border border-tao-border px-3 text-xs" title="API keys are stored in browser localStorage only. Not suitable for highly sensitive secrets on shared devices. Never committed to exports." />
           <button id="commandBtn" class="h-9 px-4 rounded-xl bg-tao-accent text-black text-sm font-semibold">Ask TAO</button>
         </div>
       </header>
 
-      <!-- Content -->
-      <main id="content" class="flex-1 overflow-y-auto bg-tao-bg">
-        <!-- injected -->
+      <div class="px-4 py-1 text-[10px] text-tao-muted bg-tao-surface border-b border-tao-border hidden sm:block">API keys are stored locally in your browser (localStorage) and excluded from exports. Browser storage is not encrypted — avoid highly sensitive secrets on shared devices. <span class="text-tao-accent">Mock (offline) requires no key.</span></div>
+      <!-- Content — capped at 1440, comfortable at 320-430, with mobile bottom nav offset -->
+      <main id="content" class="flex-1 overflow-y-auto bg-tao-bg pb-[72px] md:pb-0">
+        <div class="min-h-full">
+          <!-- injected -->
+        </div>
       </main>
 
-      <!-- Status bar -->
-      <footer class="h-7 shrink-0 border-t border-tao-border bg-tao-surface flex items-center gap-3 px-3 text-[11px] font-mono text-tao-muted">
+      <!-- Status bar - desktop only -->
+      <footer class="hidden md:flex h-7 shrink-0 border-t border-tao-border bg-tao-surface items-center gap-3 px-3 text-[11px] font-mono text-tao-muted">
         <span id="statusLeft">TAO ready — local-first, privacy-conscious</span>
         <span class="ml-auto flex items-center gap-3">
           <span id="statusProjects">— projects</span>
@@ -112,8 +101,36 @@
           <span id="clock">--:--</span>
         </span>
       </footer>
+      <!-- Mobile bottom nav -->
+      <nav id="mobileNav" class="md:hidden fixed bottom-0 left-0 right-0 bg-tao-surface border-t border-tao-border flex items-center justify-around px-2 py-2 z-30" aria-label="Primary">
+        <button data-route="command" class="flex flex-col items-center gap-1 px-3 py-1 text-xs text-tao-muted"><span class="text-lg">◉</span>Today</button>
+        <button data-route="focus" class="flex flex-col items-center gap-1 px-3 py-1 text-xs text-tao-muted"><span class="text-lg">⬢</span>Focus</button>
+        <button data-route="projects" class="flex flex-col items-center gap-1 px-3 py-1 text-xs text-tao-muted"><span class="text-lg">◆</span>Projects</button>
+        <button id="mobileSearchBtn" class="flex flex-col items-center gap-1 px-3 py-1 text-xs text-tao-muted"><span class="text-lg">⌕</span>Search</button>
+        <button id="mobileMoreBtn" class="flex flex-col items-center gap-1 px-3 py-1 text-xs text-tao-muted"><span class="text-lg">⋯</span>More</button>
+      </nav>
+      <!-- Mobile More sheet -->
+      <div id="mobileMoreSheet" class="md:hidden fixed inset-0 bg-black/50 hidden z-40" role="dialog" aria-label="More navigation">
+        <div class="absolute bottom-0 left-0 right-0 bg-tao-surface border-t border-tao-border rounded-t-dialog p-4 pb-8">
+          <div class="w-10 h-1 rounded-full bg-tao-border mx-auto mb-4"></div>
+          <div class="grid grid-cols-3 gap-3 text-sm">
+            <button data-route="memory" class="h-16 rounded-card bg-tao-raised border border-tao-border flex flex-col items-center justify-center gap-1">◑<span class="text-xs">Memory</span></button>
+            <button data-route="decisions" class="h-16 rounded-card bg-tao-raised border border-tao-border flex flex-col items-center justify-center gap-1">✦<span class="text-xs">Decisions</span></button>
+            <button data-route="ideas" class="h-16 rounded-card bg-tao-raised border border-tao-border flex flex-col items-center justify-center gap-1">💡<span class="text-xs">Ideas</span></button>
+            <button data-route="study" class="h-16 rounded-card bg-tao-raised border border-tao-border flex flex-col items-center justify-center gap-1">🎓<span class="text-xs">Study</span></button>
+            <button data-route="business" class="h-16 rounded-card bg-tao-raised border border-tao-border flex flex-col items-center justify-center gap-1">₦<span class="text-xs">Business</span></button>
+            <button data-route="dev" class="h-16 rounded-card bg-tao-raised border border-tao-border flex flex-col items-center justify-center gap-1">&lt;/&gt;<span class="text-xs">Developer</span></button>
+            <button data-route="weekly" class="h-16 rounded-card bg-tao-raised border border-tao-border flex flex-col items-center justify-center gap-1">▣<span class="text-xs">Weekly</span></button>
+            <button data-route="planning" class="h-16 rounded-card bg-tao-raised border border-tao-border flex flex-col items-center justify-center gap-1">⚡<span class="text-xs">Planning</span></button>
+            <button data-route="settings" class="h-16 rounded-card bg-tao-raised border border-tao-border flex flex-col items-center justify-center gap-1">⚙<span class="text-xs">Settings</span></button>
+          </div>
+          <button id="mobileMoreClose" class="mt-4 w-full h-10 rounded-ctrl bg-tao-card border border-tao-border text-sm">Close</button>
+        </div>
+      </div>
     </div>
   </div>
+  <!-- Mobile floating Capture — centered above bottom nav -->
+  <button id="mobileCapture" class="md:hidden fixed bottom-[72px] left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-tao-accent text-black grid place-items-center shadow-lg z-20 text-xl font-bold" aria-label="Capture">+</button>
 
   <!-- Command Palette -->
   <div id="palette" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden place-items-center p-4 z-50">
@@ -130,8 +147,60 @@
     </div>
   </div>
 
+  <!-- Quick Capture — signature, fast, 4 types -->
+  <dialog id="captureDialog" aria-label="Quick Capture" aria-modal="true" class="rounded-dialog p-0 border border-tao-border bg-tao-surface text-white w-[min(640px,92vw)] md:w-[min(640px,95vw)] backdrop:bg-black/60">
+    <form method="dialog" id="captureForm" class="p-6 md:p-8 space-y-5">
+      <div class="flex items-center justify-between">
+        <h3 class="font-display text-xl font-semibold">Capture</h3>
+        <button type="button" onclick="document.getElementById('captureDialog').close()" class="w-8 h-8 grid place-items-center rounded-ctrl border border-tao-border text-tao-muted hover:text-tao-text" aria-label="Close">✕</button>
+      </div>
+      <div class="flex gap-2 p-1 rounded-full bg-tao-raised border border-tao-border">
+        <button type="button" data-capture-tab="project" class="capture-tab flex-1 h-8 rounded-full bg-tao-text text-black text-sm font-medium">Project</button>
+        <button type="button" data-capture-tab="idea" class="capture-tab flex-1 h-8 rounded-full text-sm text-tao-muted">Idea</button>
+        <button type="button" data-capture-tab="memory" class="capture-tab flex-1 h-8 rounded-full text-sm text-tao-muted">Memory</button>
+        <button type="button" data-capture-tab="decision" class="capture-tab flex-1 h-8 rounded-full text-sm text-tao-muted">Decision</button>
+      </div>
+      <div id="captureProjectPane" class="capture-pane space-y-3">
+        <input id="capProjectName" placeholder="Project or task name" class="w-full h-10 rounded-xl bg-tao-card border border-tao-border px-3 text-sm outline-none" />
+        <textarea id="capProjectObjective" rows="2" placeholder="Objective — one clear outcome" class="w-full rounded-xl bg-tao-card border border-tao-border p-3 text-sm"></textarea>
+        <input id="capNextAction" placeholder="Next physical action — required if active" class="w-full h-9 rounded-xl bg-tao-card border border-tao-border px-3 text-sm outline-none" />
+        <div class="grid grid-cols-2 gap-3">
+          <select id="capArea" class="h-9 rounded-xl bg-tao-card border border-tao-border px-3 text-sm"><option>technology</option><option>academics</option><option>business</option><option>personal</option></select>
+          <select id="capEffort" class="h-9 rounded-xl bg-tao-card border border-tao-border px-3 text-sm"><option>S</option><option selected>M</option><option>L</option><option>XL</option></select>
+        </div>
+        <p class="text-[11px] text-tao-muted">Creates an active project. TAO enforces a next action.</p>
+      </div>
+      <div id="captureIdeaPane" class="capture-pane hidden space-y-3">
+        <input id="capIdeaTitle" placeholder="Idea title" class="w-full h-10 rounded-xl bg-tao-card border border-tao-border px-3 text-sm outline-none" />
+        <textarea id="capIdeaDesc" rows="2" placeholder="Describe in one sentence" class="w-full rounded-xl bg-tao-card border border-tao-border p-3 text-sm"></textarea>
+        <p class="text-[11px] text-tao-muted">Scored on capture (3/3/3/3). Refine in Idea Vault.</p>
+      </div>
+      <div id="captureMemoryPane" class="capture-pane hidden space-y-3">
+        <input id="capMemTitle" placeholder="Title (optional)" class="w-full h-9 rounded-xl bg-tao-card border border-tao-border px-3 text-sm outline-none" />
+        <textarea id="capMemContent" rows="3" placeholder="What should TAO remember?" class="w-full rounded-xl bg-tao-card border border-tao-border p-3 text-sm"></textarea>
+        <div class="grid grid-cols-2 gap-3">
+          <select id="capMemType" class="h-9 rounded-xl bg-tao-card border border-tao-border px-3 text-sm"><option>knowledge</option><option>goal</option><option>preference</option><option>person</option><option>business</option><option>academic</option><option>technology</option><option>idea</option><option>project</option><option>decision</option></select>
+          <select id="capMemProject" class="h-9 rounded-xl bg-tao-card border border-tao-border px-3 text-sm"><option value="">No linked project</option></select>
+        </div>
+      </div>
+      <div id="captureDecisionPane" class="capture-pane hidden space-y-3">
+        <input id="capDecTitle" placeholder="Decision title" class="w-full h-10 rounded-xl bg-tao-card border border-tao-border px-3 text-sm outline-none" />
+        <textarea id="capDecContext" rows="2" placeholder="Context" class="w-full rounded-xl bg-tao-card border border-tao-border p-3 text-sm"></textarea>
+        <input id="capDecAssumptions" placeholder="Assumptions (comma separated)" class="w-full h-9 rounded-xl bg-tao-card border border-tao-border px-3 text-sm" />
+        <div class="grid grid-cols-2 gap-3">
+          <input id="capDecConfidence" type="number" min="0" max="100" placeholder="Confidence 0-100" class="h-9 rounded-xl bg-tao-card border border-tao-border px-3 text-sm" />
+          <input id="capDecReview" type="date" class="h-9 rounded-xl bg-tao-card border border-tao-border px-3 text-sm" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button value="cancel" class="h-9 px-4 rounded-xl bg-tao-card border border-tao-border text-sm">Cancel</button>
+        <button id="captureSave" value="default" class="h-9 px-5 rounded-xl bg-tao-accent text-black text-sm font-semibold">Capture</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- Help -->
-  <div id="help" class="fixed inset-0 bg-black/60 hidden place-items-center p-4 z-50">
+  <div id="help" role="dialog" aria-label="Keyboard help" class="fixed inset-0 bg-black/60 hidden place-items-center p-4 z-50">
     <div class="w-full max-w-[720px] rounded-2xl bg-tao-surface border border-tao-border p-6">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold">Keyboard — TAO is keyboard-first</h2>
@@ -139,18 +208,21 @@
       </div>
       <div class="grid sm:grid-cols-2 gap-4 mt-4 text-sm">
         <div class="space-y-2">
-          <div class="text-tao-muted text-xs uppercase tracking-widest">Navigation</div>
-          <div class="flex justify-between"><span>G then C</span><span class="kbd">Command Center</span></div>
+          <div class="text-tao-muted text-xs uppercase tracking-widest">Navigation (OPERATE / THINK / DOMAINS / SYSTEM)</div>
+          <div class="flex justify-between"><span>G then T</span><span class="kbd">Today</span></div>
+          <div class="flex justify-between"><span>G then F</span><span class="kbd">Focus</span></div>
           <div class="flex justify-between"><span>G then P</span><span class="kbd">Projects</span></div>
           <div class="flex justify-between"><span>G then M</span><span class="kbd">Memory</span></div>
           <div class="flex justify-between"><span>G then D</span><span class="kbd">Decisions</span></div>
-          <div class="flex justify-between"><span>G then I</span><span class="kbd">Idea Vault</span></div>
-          <div class="flex justify-between"><span>G then V</span><span class="kbd">Developer</span></div>
+          <div class="flex justify-between"><span>G then I</span><span class="kbd">Ideas</span></div>
           <div class="flex justify-between"><span>G then S</span><span class="kbd">Study</span></div>
           <div class="flex justify-between"><span>G then B</span><span class="kbd">Business</span></div>
+          <div class="flex justify-between"><span>G then V</span><span class="kbd">Developer</span></div>
+          <div class="flex justify-between"><span>G then W</span><span class="kbd">Weekly Review</span></div>
         </div>
         <div class="space-y-2">
           <div class="text-tao-muted text-xs uppercase tracking-widest">Actions</div>
+          <div class="flex justify-between"><span>Capture</span><span class="kbd">C</span></div>
           <div class="flex justify-between"><span>New project</span><span class="kbd">N</span></div>
           <div class="flex justify-between"><span>Command palette</span><span class="kbd">⌘ K</span></div>
           <div class="flex justify-between"><span>Search</span><span class="kbd">/</span></div>

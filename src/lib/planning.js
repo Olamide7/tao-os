@@ -54,6 +54,9 @@ export function weeklyAnalysis(data){
   const noAction = active.filter(p=> !p.nextAction?.trim())
   const stale = active.filter(p=> {
     const upd = new Date(p.updated||p.created)
+    // also consider sessions: if focused recently, not stale
+    const recentSession = (data.sessions||[]).find(s=> s.projectId===p.id && (Date.now() - new Date(s.endedAt||s.startedAt)) < 7*86400000)
+    if(recentSession) return false
     return (Date.now()-upd) > 7*86400000
   })
   // proliferation: many active vs done ratio
@@ -64,6 +67,31 @@ export function weeklyAnalysis(data){
   const pendingDecisions = data.decisions.filter(d=>d.status==='pending').length
   const validated = data.decisions.filter(d=>d.status==='validated').length
 
+  // sessions: last 7d focus time
+  const sessions = data.sessions||[]
+  const weekAgo = Date.now() - 7*86400000
+  const weekSessions = sessions.filter(s=> new Date(s.endedAt||s.startedAt||s.date) > weekAgo)
+  const totalFocusMins = weekSessions.filter(s=> s.type==='focus').reduce((sum,s)=> sum + (s.actualMins||s.mins||0), 0)
+  const totalStudyMins = weekSessions.filter(s=> s.type==='study').reduce((sum,s)=> sum + (s.mins||0), 0)
+  const sessionsByProject = {}
+  for(const s of weekSessions){
+    const pid = s.projectId || s.courseCode || 'unknown'
+    sessionsByProject[pid] = (sessionsByProject[pid]||0) + (s.actualMins||s.mins||0)
+  }
+  // daily planned vs actual last 7d
+  const daily = data.daily||{}
+  let plannedMins = 0, plannedDays=0
+  for(let i=0;i<7;i++){
+    const d = new Date(Date.now()-i*86400000).toISOString().slice(0,10)
+    const entry = daily[d]
+    if(entry?.timeBlocks){
+      const dayPlanned = entry.timeBlocks.reduce((sum,tb)=> sum + (tb.mins||0), 0)
+      if(dayPlanned>0){ plannedMins+=dayPlanned; plannedDays++ }
+    }
+  }
+  const actualMins = totalFocusMins + totalStudyMins
+  const plannedVsActual = plannedMins>0 ? Math.round((actualMins/plannedMins)*100) : null
+
   // bottleneck detection
   const bottlenecks=[]
   if(overdue.length) bottlenecks.push(`${overdue.length} overdue project(s) — reschedule or drop scope`)
@@ -72,10 +100,13 @@ export function weeklyAnalysis(data){
   if(active.length>7) bottlenecks.push(`Context switching risk — ${active.length} active > 7. Pause lowest-importance.`)
   if(ideasCaptured>10) bottlenecks.push(`Idea debt — ${ideasCaptured} unscored ideas. Spend 10m scoring.`)
   if(pendingDecisions>5) bottlenecks.push(`${pendingDecisions} pending decisions — close loop or set review date`)
+  if(weekSessions.length===0) bottlenecks.push(`No focus sessions logged this week — start a 25m focus block`)
+  if(plannedVsActual!==null && plannedVsActual<50) bottlenecks.push(`Planned vs actual ${plannedVsActual}% — over-planning or under-execution`)
 
   return {
-    totals: { active: active.length, done: done.length, paused: paused.length, overdue: overdue.length, blocked: blocked.length, stale: stale.length, proliferation, ideasCaptured, pendingDecisions, validated },
+    totals: { active: active.length, done: done.length, paused: paused.length, overdue: overdue.length, blocked: blocked.length, stale: stale.length, proliferation, ideasCaptured, pendingDecisions, validated, totalFocusMins, totalStudyMins, weekSessions: weekSessions.length, plannedMins, actualMins, plannedVsActual },
     bottlenecks,
-    overdue, blocked, stale, noAction
+    overdue, blocked, stale, noAction,
+    weekSessions, sessionsByProject, totalFocusMins, totalStudyMins
   }
 }
